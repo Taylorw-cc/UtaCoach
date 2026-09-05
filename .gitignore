@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+
+# Test / tooling caches
+.pytest_cache/
+.mypy_cache/
+
+# Audio and generated artifacts
+audio/*.wav
+audio/*.mp3
+outputs/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
