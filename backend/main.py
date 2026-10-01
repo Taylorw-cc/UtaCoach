@@ -1,6 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 from backend.services.pitch_analyzer import load_audio
 from fastapi.middleware.cors import CORSMiddleware
+from pathlib import Path
 
 app = FastAPI(
     title="UtaCoach API",
@@ -32,7 +33,12 @@ def health():
 async def upload_audio(audio: UploadFile = File(...)):
     content = await audio.read()
 
-    audio_info = load_audio(content)
+    suffix = Path(audio.filename).suffix or ".webm"
+
+    audio_info = load_audio(
+        content,
+        input_suffix=suffix
+        )
 
     return {
         "filename": audio.filename,

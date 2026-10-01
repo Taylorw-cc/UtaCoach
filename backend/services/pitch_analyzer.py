@@ -1,8 +1,61 @@
 import io
+import subprocess
+import tempfile
+from pathlib import Path
+
 import librosa
 import numpy as np
 
-def load_audio(audio_bytes: bytes):
+
+def convert_to_wav(audio_bytes: bytes, input_suffix: str = ".webm") -> bytes:
+    with tempfile.NamedTemporaryFile(
+        suffix=input_suffix,
+        delete=False
+    ) as input_file:
+        input_file.write(audio_bytes)
+        input_path = Path(input_file.name)
+
+    with tempfile.NamedTemporaryFile(
+        suffix=".wav",
+        delete=False
+    ) as output_file:
+        output_path = Path(output_file.name)
+
+    try:
+        subprocess.run(
+            [
+                "ffmpeg",
+                "-y",
+                "-i",
+                str(input_path),
+                "-ac",
+                "1",
+                "-ar",
+                "44100",
+                str(output_path),
+            ],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+
+        return output_path.read_bytes()
+
+    finally:
+        input_path.unlink(missing_ok=True)
+        output_path.unlink(missing_ok=True)
+
+
+def load_audio(
+    audio_bytes: bytes,
+    input_suffix: str = ".wav"
+):
+    if input_suffix.lower() != ".wav":
+        audio_bytes = convert_to_wav(
+            audio_bytes,
+            input_suffix=input_suffix
+        )
+
     audio_file = io.BytesIO(audio_bytes)
 
     y, sr = librosa.load(
@@ -26,9 +79,9 @@ def load_audio(audio_bytes: bytes):
     pitch_points = []
 
     for time, frequency, voiced in zip(
-    times,
-    f0,
-    voiced_flag
+        times,
+        f0,
+        voiced_flag
     ):
         if voiced and np.isfinite(frequency):
             midi_note = librosa.hz_to_midi(frequency)
