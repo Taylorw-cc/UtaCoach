@@ -13,6 +13,16 @@
 
     <p id="status"></p>
 
+    <h2>麥克風錄音</h2>
+
+    <button id="startRecordBtn">開始錄音</button>
+    <button id="stopRecordBtn" disabled>停止錄音</button>
+    <button id="analyzeRecordingBtn" disabled>分析錄音</button>
+
+    <p id="recordStatus">尚未錄音</p>
+
+    <audio id="recordedAudio" controls></audio>
+
     <canvas
         id="pitchChart"
         width="1000"
