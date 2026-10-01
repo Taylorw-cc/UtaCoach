@@ -12,6 +12,9 @@ const status = document.getElementById("status");
 // 音高圖
 const canvas = document.getElementById("pitchChart");
 const ctx = canvas.getContext("2d");
+const mainNote = document.getElementById("mainNote");
+const lowestNote = document.getElementById("lowestNote");
+const highestNote = document.getElementById("highestNote");
 
 // 錄音相關
 const startRecordBtn = document.getElementById("startRecordBtn");
@@ -54,6 +57,7 @@ uploadBtn.addEventListener("click", async () => {
 
         console.log("上傳檔案分析結果：", data);
 
+        showPitchSummary(data.audio_info.pitch_summary);
         drawPitch(data.audio_info.pitch_points);
 
         status.textContent = "分析完成";
@@ -178,6 +182,7 @@ analyzeRecordingBtn.addEventListener("click", async () => {
 
         console.log("錄音分析結果：", data);
 
+        showPitchSummary(data.audio_info.pitch_summary);
         drawPitch(data.audio_info.pitch_points);
 
         status.textContent = "錄音分析完成";
@@ -257,20 +262,21 @@ function getAudioExtension(mimeType) {
 // 9. 畫音高曲線
 // ==============================
 
+function showPitchSummary(summary) {
+    mainNote.textContent = summary?.main_note ?? "--";
+    lowestNote.textContent = summary?.lowest_note ?? "--";
+    highestNote.textContent = summary?.highest_note ?? "--";
+}
+
 function drawPitch(points) {
-    ctx.clearRect(
-        0,
-        0,
-        canvas.width,
-        canvas.height
-    );
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     if (!points || points.length === 0) {
         status.textContent = "沒有偵測到有效音高";
         return;
     }
 
-    const padding = 50;
+    const padding = 60;
 
     const times = points.map((point) => point.time);
     const midiValues = points.map((point) => point.midi);
@@ -278,8 +284,8 @@ function drawPitch(points) {
     const minTime = Math.min(...times);
     const maxTime = Math.max(...times);
 
-    const minMidi = Math.min(...midiValues);
-    const maxMidi = Math.max(...midiValues);
+    const minMidi = Math.floor(Math.min(...midiValues)) - 1;
+    const maxMidi = Math.ceil(Math.max(...midiValues)) + 1;
 
     const timeRange = maxTime - minTime || 1;
     const midiRange = maxMidi - minMidi || 1;
@@ -301,7 +307,42 @@ function drawPitch(points) {
         );
     }
 
-    // 畫 X / Y 軸
+    function midiToNoteName(midi) {
+        const noteNames = [
+            "C", "C#", "D", "D#", "E", "F",
+            "F#", "G", "G#", "A", "A#", "B"
+        ];
+
+        const rounded = Math.round(midi);
+        const note = noteNames[rounded % 12];
+        const octave = Math.floor(rounded / 12) - 1;
+
+        return `${note}${octave}`;
+    }
+
+    // Y 軸音名 + 水平格線
+    ctx.font = "14px sans-serif";
+    ctx.lineWidth = 1;
+
+    for (let midi = minMidi; midi <= maxMidi; midi++) {
+        const y = scaleY(midi);
+
+        ctx.beginPath();
+        ctx.moveTo(padding, y);
+        ctx.lineTo(canvas.width - padding, y);
+
+        ctx.strokeStyle = "#dddddd";
+        ctx.stroke();
+
+        ctx.fillStyle = "#555";
+        ctx.fillText(
+            midiToNoteName(midi),
+            15,
+            y + 4
+        );
+    }
+
+    // X / Y 軸
     ctx.beginPath();
 
     ctx.moveTo(
@@ -320,25 +361,66 @@ function drawPitch(points) {
     );
 
     ctx.strokeStyle = "#999";
-    ctx.lineWidth = 1;
     ctx.stroke();
+    // X 軸時間刻度
+    const timeTicks = 5;
 
+    ctx.fillStyle = "#555";
+    ctx.font = "14px sans-serif";
 
-    // 畫音高曲線
+    for (let i = 0; i <= timeTicks; i++) {
+        const time =
+            minTime +
+            (timeRange * i / timeTicks);
+
+        const x = scaleX(time);
+
+        // 刻度線
+        ctx.beginPath();
+        ctx.moveTo(
+            x,
+            canvas.height - padding
+        );
+        ctx.lineTo(
+            x,
+            canvas.height - padding + 6
+        );
+
+        ctx.strokeStyle = "#999";
+        ctx.stroke();
+
+        // 秒數
+        ctx.fillText(
+            `${time.toFixed(1)}s`,
+            x - 12,
+            canvas.height - padding + 25
+        );
+    }
+
+    // 音高曲線
     ctx.beginPath();
 
-    points.forEach((point, index) => {
+    let previousPoint = null;
+
+    points.forEach((point) => {
         const x = scaleX(point.time);
         const y = scaleY(point.midi);
 
-        if (index === 0) {
+        const shouldBreak =
+            !previousPoint ||
+            point.time - previousPoint.time > 0.1;
+
+        if (shouldBreak) {
             ctx.moveTo(x, y);
         } else {
             ctx.lineTo(x, y);
         }
+
+        previousPoint = point;
     });
 
     ctx.strokeStyle = "#222";
     ctx.lineWidth = 2;
     ctx.stroke();
+    
 }

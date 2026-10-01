@@ -94,9 +94,38 @@ def load_audio(
                 "note": note_name
             })
 
+    midi_values = [
+    point["midi"]
+    for point in pitch_points
+    ]
+
+    if midi_values:
+        min_midi = min(midi_values)
+        max_midi = max(midi_values)
+        median_midi = float(np.median(midi_values))
+
+        pitch_summary = {
+            "lowest_note": librosa.midi_to_note(min_midi),
+            "highest_note": librosa.midi_to_note(max_midi),
+            "main_note": librosa.midi_to_note(median_midi),
+            "lowest_midi": float(min_midi),
+            "highest_midi": float(max_midi),
+            "median_midi": median_midi,
+        }
+    else:
+        pitch_summary = {
+            "lowest_note": None,
+            "highest_note": None,
+            "main_note": None,
+            "lowest_midi": None,
+            "highest_midi": None,
+            "median_midi": None,
+        }
+
     return {
-        "sample_rate": sr,
-        "samples": len(y),
-        "duration_seconds": len(y) / sr,
-        "pitch_points": pitch_points
+    "sample_rate": sr,
+    "samples": len(y),
+    "duration_seconds": len(y) / sr,
+    "pitch_summary": pitch_summary,
+    "pitch_points": pitch_points,
     }
