@@ -28,9 +28,23 @@
         <p>最低音：<strong id="lowestNote">--</strong></p>
         <p>最高音：<strong id="highestNote">--</strong></p>
     </div>
+
+    <h2>音高穩定度</h2>
+    <div id="stabilitySummary">
+        <p>平均穩定度：<strong id="avgStability">--</strong></p>
+        <p>最不穩定音符：<strong id="leastStableNote">--</strong></p>
+    </div>
     
     <canvas
         id="pitchChart"
+        width="1000"
+        height="500"
+        style="border: 1px solid #ccc;">
+    </canvas>
+    <h2>音符區段</h2>
+
+    <canvas
+        id="noteSegmentsChart"
         width="1000"
         height="500"
         style="border: 1px solid #ccc;">

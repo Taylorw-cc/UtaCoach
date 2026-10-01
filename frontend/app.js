@@ -8,6 +8,8 @@ const uploadBtn = document.getElementById("uploadBtn");
 
 // 狀態顯示
 const status = document.getElementById("status");
+const avgStability = document.getElementById("avgStability");
+const leastStableNote = document.getElementById("leastStableNote");
 
 // 音高圖
 const canvas = document.getElementById("pitchChart");
@@ -15,6 +17,8 @@ const ctx = canvas.getContext("2d");
 const mainNote = document.getElementById("mainNote");
 const lowestNote = document.getElementById("lowestNote");
 const highestNote = document.getElementById("highestNote");
+const noteSegmentsCanvas = document.getElementById("noteSegmentsChart");
+const noteSegmentsCtx = noteSegmentsCanvas.getContext("2d");
 
 // 錄音相關
 const startRecordBtn = document.getElementById("startRecordBtn");
@@ -58,7 +62,9 @@ uploadBtn.addEventListener("click", async () => {
         console.log("上傳檔案分析結果：", data);
 
         showPitchSummary(data.audio_info.pitch_summary);
+        showStabilitySummary(data.audio_info.note_segments);
         drawPitch(data.audio_info.pitch_points);
+        drawNoteSegments(data.audio_info.note_segments);
 
         status.textContent = "分析完成";
 
@@ -183,7 +189,9 @@ analyzeRecordingBtn.addEventListener("click", async () => {
         console.log("錄音分析結果：", data);
 
         showPitchSummary(data.audio_info.pitch_summary);
+        showStabilitySummary(data.audio_info.note_segments);
         drawPitch(data.audio_info.pitch_points);
+        drawNoteSegments(data.audio_info.note_segments);
 
         status.textContent = "錄音分析完成";
 
@@ -421,6 +429,278 @@ function drawPitch(points) {
 
     ctx.strokeStyle = "#222";
     ctx.lineWidth = 2;
-    ctx.stroke();
+    ctx.stroke();    
+}
+
+function drawNoteSegments(segments) {
+    noteSegmentsCtx.clearRect(
+        0,
+        0,
+        noteSegmentsCanvas.width,
+        noteSegmentsCanvas.height
+    );
+
+    if (!segments || segments.length === 0) {
+        return;
+    }
+
+    const padding = 65;
+
+    const minTime = Math.min(
+        ...segments.map(segment => segment.start_time)
+    );
+
+    const maxTime = Math.max(
+        ...segments.map(segment => segment.end_time)
+    );
+
+    const midiValues = segments.map(
+        segment => segment.midi
+    );
+
+    const minMidi =
+        Math.floor(Math.min(...midiValues)) - 1;
+
+    const maxMidi =
+        Math.ceil(Math.max(...midiValues)) + 1;
+
+    const timeRange =
+        maxTime - minTime || 1;
+
+    const midiRange =
+        maxMidi - minMidi || 1;
+
+
+    function scaleX(time) {
+        return (
+            padding +
+            ((time - minTime) / timeRange) *
+            (
+                noteSegmentsCanvas.width
+                - padding * 2
+            )
+        );
+    }
+
+
+    function scaleY(midi) {
+        return (
+            noteSegmentsCanvas.height
+            - padding
+            - (
+                (midi - minMidi) / midiRange
+            ) *
+            (
+                noteSegmentsCanvas.height
+                - padding * 2
+            )
+        );
+    }
+
+
+    function midiToNoteName(midi) {
+        const noteNames = [
+            "C",
+            "C#",
+            "D",
+            "D#",
+            "E",
+            "F",
+            "F#",
+            "G",
+            "G#",
+            "A",
+            "A#",
+            "B"
+        ];
+
+        const rounded =
+            Math.round(midi);
+
+        const note =
+            noteNames[rounded % 12];
+
+        const octave =
+            Math.floor(rounded / 12) - 1;
+
+        return `${note}${octave}`;
+    }
+
+
+    // ==============================
+    // Y 軸音名與格線
+    // ==============================
+
+    noteSegmentsCtx.font =
+        "14px sans-serif";
+
+    noteSegmentsCtx.lineWidth = 1;
+
+    for (
+        let midi = minMidi;
+        midi <= maxMidi;
+        midi++
+    ) {
+        const y = scaleY(midi);
+
+        noteSegmentsCtx.beginPath();
+
+        noteSegmentsCtx.moveTo(
+            padding,
+            y
+        );
+
+        noteSegmentsCtx.lineTo(
+            noteSegmentsCanvas.width
+                - padding,
+            y
+        );
+
+        noteSegmentsCtx.strokeStyle =
+            "#dddddd";
+
+        noteSegmentsCtx.stroke();
+
+        noteSegmentsCtx.fillStyle =
+            "#555";
+
+        noteSegmentsCtx.fillText(
+            midiToNoteName(midi),
+            15,
+            y + 4
+        );
+    }
+
+
+    // ==============================
+    // X 軸時間
+    // ==============================
+
+    const timeTicks = 5;
+
+    for (
+        let i = 0;
+        i <= timeTicks;
+        i++
+    ) {
+        const time =
+            minTime +
+            (
+                timeRange
+                * i
+                / timeTicks
+            );
+
+        const x = scaleX(time);
+
+        noteSegmentsCtx.beginPath();
+
+        noteSegmentsCtx.moveTo(
+            x,
+            noteSegmentsCanvas.height
+                - padding
+        );
+
+        noteSegmentsCtx.lineTo(
+            x,
+            noteSegmentsCanvas.height
+                - padding + 6
+        );
+
+        noteSegmentsCtx.strokeStyle =
+            "#999";
+
+        noteSegmentsCtx.stroke();
+
+        noteSegmentsCtx.fillStyle =
+            "#555";
+
+        noteSegmentsCtx.fillText(
+            `${time.toFixed(1)}s`,
+            x - 12,
+            noteSegmentsCanvas.height
+                - padding + 25
+        );
+    }
+
+
+    // ==============================
+    // 畫音符區段
+    // ==============================
+
+    const noteHeight = 14;
+
+    segments.forEach(segment => {
+        const startX = scaleX(segment.start_time);
+        const endX = scaleX(segment.end_time);
+        const y = scaleY(segment.midi);
     
+        const width = Math.max(
+            endX - startX,
+            3
+        );
+    
+        noteSegmentsCtx.fillStyle = "#333";
+    
+        noteSegmentsCtx.fillRect(
+            startX,
+            y - noteHeight / 2,
+            width,
+            noteHeight
+        );
+    
+        // 顯示音名
+        if (width > 35) {
+            noteSegmentsCtx.fillStyle = "#000";
+    
+            noteSegmentsCtx.fillText(
+                segment.note,
+                startX + 4,
+                y - 12
+            );
+        }
+    
+        // 顯示穩定度
+        if (
+            segment.stability_score !== undefined &&
+            width > 50
+        ) {
+            noteSegmentsCtx.fillStyle = "#555";
+    
+            noteSegmentsCtx.fillText(
+                `${segment.stability_score.toFixed(0)}%`,
+                startX + 4,
+                y + 25
+            );
+        }
+    });
+}
+
+function showStabilitySummary(segments) {
+    if (!segments || segments.length === 0) {
+        avgStability.textContent = "--";
+        leastStableNote.textContent = "--";
+        return;
+    }
+
+    const scores = segments.map(
+        segment => segment.stability_score
+    );
+
+    const average =
+        scores.reduce((sum, score) => sum + score, 0) /
+        scores.length;
+
+    const leastStable = segments.reduce(
+        (lowest, segment) =>
+            segment.stability_score < lowest.stability_score
+                ? segment
+                : lowest
+    );
+
+    avgStability.textContent =
+        `${average.toFixed(1)} / 100`;
+
+    leastStableNote.textContent =
+        `${leastStable.note} (${leastStable.stability_score.toFixed(1)})`;
 }
